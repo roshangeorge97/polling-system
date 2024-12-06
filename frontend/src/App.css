@@ -1,122 +1,188 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Improved App.css with Better Color Contrast and Design */
+:root {
+  /* Color Palette */
+  --primary-color: #2c3e50;
+  --secondary-color: #34495e;
+  --accent-color: #3498db;
+  --light-background: #ecf0f1;
+  --white: #ffffff;
+  --text-dark: #2c3e50;
+  --text-light: #f8f9fa;
+  --success-color: #27ae60;
+  --danger-color: #e74c3c;
+}
 
-/* App.css */
-
-/* Global Styles */
-body {
+* {
+  box-sizing: border-box;
   margin: 0;
-  font-family: Arial, sans-serif;
-  background-color: #f3f4f6;
+  padding: 0;
 }
 
-/* Container Styles */
-#root {
-  max-width: 1280px;
-  margin: 0 auto;
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  background-color: var(--light-background);
+  color: var(--text-dark);
+  line-height: 1.6;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.container {
+  background-color: var(--white);
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
   padding: 2rem;
-  text-align: center;
+  width: 100%;
+  max-width: 500px;
+  margin: 1rem;
 }
 
-/* Logo Styles */
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  transition: filter 300ms ease;
-}
-
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
-}
-
-/* Card Styles */
-.card {
-  padding: 2em;
-  background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  margin: 1rem auto;
-}
-
-.card h2 {
-  font-size: 1.5rem;
-  color: #1d4ed8;
+/* Typography */
+h1, h2, h3 {
+  color: var(--primary-color);
   margin-bottom: 1rem;
+  font-weight: 700;
 }
 
-.card button {
-  display: block;
+h2 {
+  font-size: 1.75rem;
+  text-align: center;
+  color: var(--accent-color);
+}
+
+/* Form Elements */
+input, 
+button {
   width: 100%;
   padding: 0.75rem;
   margin: 0.5rem 0;
-  border: none;
   border-radius: 8px;
-  font-size: 1rem;
-  cursor: pointer;
+  border: 2px solid var(--light-background);
+  transition: all 0.3s ease;
 }
 
-.card button.teacher {
-  background-color: #3b82f6;
-  color: white;
-}
-
-.card button.teacher:hover {
-  background-color: #2563eb;
-}
-
-.card button.student {
-  background-color: #10b981;
-  color: white;
-}
-
-.card button.student:hover {
-  background-color: #059669;
-}
-
-/* Poll Input Styles */
-input[type="text"],
-input[type="number"] {
-  width: calc(100% - 2rem);
-  padding: 0.75rem;
-  margin: 0.5rem 0;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
+input {
+  background-color: var(--light-background);
+  color: var(--text-dark);
 }
 
 input:focus {
   outline: none;
-  border-color: #2563eb;
-  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.3);
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
 }
 
-/* Button Styles */
-button {
-  transition: background-color 0.3s ease;
+/* Button Styles with High Contrast */
+.btn {
+  border: none;
+  color: var(--white);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  cursor: pointer;
 }
 
-/* Miscellaneous Styles */
-.text-center {
-  text-align: center;
+.btn-teacher {
+  background-color: var(--accent-color);
 }
 
-.mb-4 {
-  margin-bottom: 1rem;
+.btn-teacher:hover {
+  background-color: #2980b9;
 }
 
-.bg-yellow {
-  background-color: #fef3c7;
-  padding: 1rem;
+.btn-student {
+  background-color: var(--success-color);
+}
+
+.btn-student:hover {
+  background-color: #2ecc71;
+}
+
+.btn:disabled {
+  background-color: #bdc3c7;
+  cursor: not-allowed;
+}
+
+/* Active Poll Styles */
+.active-poll {
+  background-color: #fffbe6;
+  border: 2px solid var(--accent-color);
   border-radius: 8px;
+  padding: 1rem;
   margin-top: 1rem;
 }
 
-.bg-gray {
-  background-color: #e5e7eb;
-  padding: 1rem;
+.poll-option {
+  margin: 0.5rem 0;
+  background-color: var(--light-background);
+  color: var(--text-dark);
+  border: 2px solid transparent;
+}
+
+.poll-option:hover {
+  background-color: var(--accent-color);
+  color: var(--white);
+}
+
+.poll-option.selected {
+  background-color: var(--accent-color);
+  color: var(--white);
+  border-color: var(--primary-color);
+}
+
+/* Timer and Results */
+.timer {
+  color: var(--danger-color);
+  font-weight: bold;
+}
+
+.poll-results {
+  background-color: #f0f4f8;
   border-radius: 8px;
+  padding: 1rem;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 600px) {
+  .container {
+    width: 95%;
+    margin: 1rem;
+    padding: 1rem;
+  }
+}
+
+/* Accessibility Enhancements */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+  }
+}
+
+.current-poll-box, .poll-box {
+  border: 2px solid #dbeafe;
+  transition: all 0.3s ease;
+}
+
+.current-poll-box:hover, .poll-box:hover {
+  border-color: #93c5fd;
+  transform: scale(1.02);
+}
+
+.toggle-stats-btn {
+  background: none;
+  border: none;
+  color: #2563eb;
+  cursor: pointer;
+  padding: 0;
+}
+
+.toggle-stats-btn:hover {
+  text-decoration: underline;
+}
+
+.stats-box {
+  background-color: #f1f5f9;
+  border: 1px solid #e5e7eb;
 }

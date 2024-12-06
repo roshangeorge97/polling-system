@@ -45,36 +45,81 @@ function TeacherDashboard({ socket }) {
   const [maxTime, setMaxTime] = useState(60);
   const [activePoll, setActivePoll] = useState(null);
   const [pastPolls, setPastPolls] = useState([]);
+  const [pollError, setPollError] = useState(null);
+  const [statsVisible, setStatsVisible] = useState(null);
 
   useEffect(() => {
     socket.emit('get_past_polls');
+    socket.emit('get_active_poll');
+
+    socket.on('new_poll', (poll) => {
+      setActivePoll(poll);
+    });
+
+    socket.on('poll_response_update', (updatedPoll) => {
+      setActivePoll(prev => ({
+        ...prev,
+        responses: updatedPoll.responses
+      }));
+    });
+
     socket.on('past_polls', (polls) => {
       setPastPolls(polls);
     });
 
-    socket.emit('get_active_poll');
     socket.on('active_poll', (poll) => {
       setActivePoll(poll);
     });
 
+
+    socket.on('no_active_poll', () => {
+      setActivePoll(null);
+    });
+
+    socket.on('poll_creation_error', (error) => {
+      setPollError(error);
+      setTimeout(() => setPollError(null), 3000);
+    });
+
+    socket.on('poll_closed', () => {
+      setActivePoll(null);
+      socket.emit('get_past_polls');
+    });
+
     return () => {
+      socket.off('new_poll');
       socket.off('past_polls');
       socket.off('active_poll');
+      socket.off('no_active_poll');
+      socket.off('poll_creation_error');
+      socket.off('poll_closed');
     };
-  }, []);
+  }, [socket]);
+
+  const toggleStatsVisibility = (pollId) => {
+    if (statsVisible === pollId) {
+      setStatsVisible(null);
+    } else {
+      setStatsVisible(pollId);
+      if (activePoll && activePoll._id === pollId) {
+        socket.emit('get_poll_responses', pollId);
+      }
+    }
+  };
 
   const createPoll = () => {
-    if (!question || options.some(opt => !opt)) {
+    if (!question || options.some(opt => !opt.trim())) {
       alert('Please fill in all fields');
       return;
     }
 
     socket.emit('create_poll', {
       question,
-      options,
+      options: options.filter(opt => opt.trim()),
       maxTime,
     });
 
+    // Reset form
     setQuestion('');
     setOptions(['', '']);
   };
@@ -92,6 +137,13 @@ function TeacherDashboard({ socket }) {
   return (
     <div className="bg-white shadow-lg rounded-lg p-6 w-full max-w-3xl">
       <h2 className="text-3xl font-bold mb-6 text-center text-blue-600">Teacher Dashboard</h2>
+      
+      {pollError && (
+        <div className="bg-red-100 text-red-800 p-3 rounded-lg mb-4 text-center">
+          {pollError}
+        </div>
+      )}
+
       <div className="space-y-6">
         <input
           placeholder="Enter your poll question"
@@ -128,6 +180,8 @@ function TeacherDashboard({ socket }) {
             onChange={(e) => setMaxTime(Number(e.target.value))}
             className="w-24 p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             disabled={!!activePoll}
+            min="10"
+            max="300"
           />
         </div>
 
@@ -140,28 +194,71 @@ function TeacherDashboard({ socket }) {
         </button>
 
         {activePoll && (
-          <div className="mt-6 p-4 bg-yellow-100 rounded-lg">
-            <h3 className="font-semibold">Active Poll</h3>
-            <p>{activePoll.question}</p>
-            <p>Time Remaining: {activePoll.maxTime} seconds</p>
+  <div className="current-poll-box mt-6 p-4 bg-blue-100 rounded-lg shadow-md">
+    <h3 className="font-semibold text-lg text-blue-600">Current Poll</h3>
+    <p className="text-gray-800 font-medium mb-2">{activePoll.question}</p>
+    <button
+      className="toggle-stats-btn text-blue-500 hover:underline"
+      onClick={() => toggleStatsVisibility(activePoll._id)}
+    >
+      {statsVisible === activePoll._id ? 'Hide Stats' : 'View Stats'}
+    </button>
+    {statsVisible === activePoll._id && (
+      <div className="mt-4 stats-box bg-white p-3 rounded-lg shadow-sm">
+        <p className="text-gray-700">Who Voted What:</p>
+        <ul className="list-disc pl-5">
+          {activePoll.responses.map((response, index) => (
+            <li key={index} className="text-sm text-gray-600">
+              {response.studentId}: {response.answer}
+            </li>
+          ))}
+        </ul>
+        <p className="text-gray-700 mt-3">
+          Total Students Attempted: {activePoll.responses.length}
+        </p>
+      </div>
+    )}
+  </div>
+)}
+
+
+<div className="past-polls-section mt-6">
+  <h3 className="text-lg font-semibold mb-4 text-blue-600">Past Polls</h3>
+  {pastPolls.length === 0 ? (
+    <p className="text-center text-gray-500">No past polls yet.</p>
+  ) : (
+    pastPolls.map((poll) => (
+      <div
+        key={poll._id}
+        className="poll-box bg-white shadow-md rounded-lg p-4 mb-4 hover:shadow-lg transition"
+      >
+        <p className="font-semibold text-gray-800">{poll.question}</p>
+        <button
+          className="toggle-stats-btn text-blue-500 hover:underline"
+          onClick={() => toggleStatsVisibility(poll._id)}
+        >
+          {statsVisible === poll._id ? 'Hide Stats' : 'View Stats'}
+        </button>
+        {statsVisible === poll._id && (
+          <div className="mt-4 stats-box bg-gray-50 p-3 rounded-lg shadow-inner">
+            <p className="text-gray-700">Who Voted What:</p>
+            <ul className="list-disc pl-5">
+              {poll.responses.map((response, index) => (
+                <li key={index} className="text-sm text-gray-600">
+                  {response.studentId}: {response.answer}
+                </li>
+              ))}
+            </ul>
+            <p className="text-gray-700 mt-3">
+              Total Students Attempted: {poll.responses.length}
+            </p>
           </div>
         )}
+      </div>
+    ))
+  )}
+</div>
 
-        <div className="mt-6">
-          <h3 className="text-lg font-semibold mb-4">Past Polls</h3>
-          {pastPolls.map((poll) => (
-            <div key={poll._id} className="bg-white shadow-lg rounded-lg p-4 mb-4">
-              <p className="font-medium">{poll.question}</p>
-              <div>
-                {poll.responses.map((response) => (
-                  <div key={response._id} className="text-sm text-gray-600">
-                    {response.answer}
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
       </div>
     </div>
   );
@@ -175,25 +272,40 @@ function StudentDashboard({ socket }) {
   const [selectedAnswer, setSelectedAnswer] = useState('');
   const [timeRemaining, setTimeRemaining] = useState(0);
   const [pollResults, setPollResults] = useState(null);
+  const [registrationError, setRegistrationError] = useState(null);
   const timerRef = useRef(null);
 
   useEffect(() => {
     const storedName = sessionStorage.getItem('studentName');
     if (storedName) {
       setStudentName(storedName);
-      setIsRegistered(true);
       registerStudent(storedName);
     }
 
+    // Student registration events
     socket.on('student_registered', () => {
       setIsRegistered(true);
+      setRegistrationError(null);
+      // Immediately try to fetch the active poll
+      socket.emit('get_active_poll');
     });
 
+    socket.on('student_registration_error', (error) => {
+      setRegistrationError(error);
+      setTimeout(() => setRegistrationError(null), 3000);
+    });
+
+    // Active poll events
     socket.on('new_poll', (poll) => {
       setActivePoll(poll);
       setTimeRemaining(poll.maxTime);
       setPollResults(null);
+      setSelectedAnswer('');
 
+      // Start countdown timer
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
       timerRef.current = setInterval(() => {
         setTimeRemaining((prev) => {
           if (prev <= 1) {
@@ -206,6 +318,11 @@ function StudentDashboard({ socket }) {
       }, 1000);
     });
 
+    socket.on('no_active_poll', () => {
+      setActivePoll(null);
+      setPollResults(null);
+    });
+
     socket.on('poll_results', (results) => {
       setPollResults(results);
       clearInterval(timerRef.current);
@@ -213,7 +330,9 @@ function StudentDashboard({ socket }) {
 
     return () => {
       socket.off('student_registered');
+      socket.off('student_registration_error');
       socket.off('new_poll');
+      socket.off('no_active_poll');
       socket.off('poll_results');
       if (timerRef.current) {
         clearInterval(timerRef.current);
@@ -249,6 +368,11 @@ function StudentDashboard({ socket }) {
     return (
       <div className="bg-white shadow-lg rounded-lg p-6 w-[350px] max-w-md">
         <h2 className="text-2xl font-bold mb-4 text-center text-blue-600">Student Registration</h2>
+        {registrationError && (
+          <div className="bg-red-100 text-red-800 p-3 rounded-lg mb-4 text-center">
+            {registrationError}
+          </div>
+        )}
         <form onSubmit={handleNameSubmit} className="space-y-4">
           <input
             placeholder="Enter your name"
@@ -273,35 +397,32 @@ function StudentDashboard({ socket }) {
       <h2 className="text-3xl font-bold mb-6 text-center text-blue-600">Student Dashboard</h2>
       <p className="mb-4 text-gray-600 text-center">Welcome, {studentName}</p>
 
-      {activePoll ? (
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold">{activePoll.question}</h3>
-          <div className="space-y-2">
-            {activePoll.options.map((option, index) => (
-              <button
-                key={index}
-                onClick={() => setSelectedAnswer(option)}
-                className={`w-full p-3 rounded-lg text-white ${
-                  selectedAnswer === option ? 'bg-blue-600' : 'bg-blue-500'
-                } hover:bg-blue-600 focus:outline-none transition-colors`}
-              >
-                {option}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex items-center justify-between">
-            <span className="text-gray-600">Time Remaining: {timeRemaining} seconds</span>
-            <button
-              onClick={submitAnswer}
-              className="p-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
-            >
-              Submit Answer
-            </button>
-          </div>
+      {activePoll && (
+        <div className="mt-6 p-4 bg-blue-100 rounded-lg shadow-md">
+          <h3 className="font-semibold text-lg text-blue-600">Current Poll</h3>
+          <p className="text-gray-800 font-medium mb-2">{activePoll.question}</p>
+          <button
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+            onClick={() => toggleStatsVisibility(activePoll._id)}
+          >
+            {statsVisible === activePoll._id ? 'Hide Stats' : 'View Stats'}
+          </button>
+          {statsVisible === activePoll._id && activePoll.responses && (
+            <div className="mt-4 bg-white p-3 rounded-lg shadow-sm">
+              <p className="text-gray-700">Responses:</p>
+              <ul className="list-disc pl-5">
+                {activePoll.responses.map((response, index) => (
+                  <li key={index} className="text-sm text-gray-600">
+                    {response.studentId}: {response.answer}
+                  </li>
+                ))}
+              </ul>
+              <p className="text-gray-700 mt-3">
+                Total Responses: {activePoll.responses.length}
+              </p>
+            </div>
+          )}
         </div>
-      ) : (
-        <p className="text-center text-lg text-gray-600">No active poll at the moment.</p>
       )}
 
       {pollResults && (

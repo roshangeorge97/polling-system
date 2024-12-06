@@ -1,4 +1,3 @@
-// server/server.js
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
@@ -14,192 +13,192 @@ const io = socketIo(server, {
   }
 });
 
-// Middleware
-app.use(cors());
-app.use(express.json());
+const uri = "mongodb+srv://roshangeorge2003:123@cluster0.tuypt.mongodb.net/live-polling-system?retryWrites=true&w=majority&appName=Cluster0";
 
-// MongoDB Connection
-mongoose.connect('mongodb://127.0.0.1:27017/live-polling-system', {
+// Mongoose Connection
+mongoose.connect(uri, {
   useNewUrlParser: true,
-  useUnifiedTopology: true
+  useUnifiedTopology: true,
 });
 
-// Mongoose Models
+
+// Poll Schema
 const PollSchema = new mongoose.Schema({
   question: String,
   options: [String],
-  createdAt: { type: Date, default: Date.now },
-  active: { type: Boolean, default: true },
   responses: [{
     studentId: String,
     answer: String,
-    answeredAt: Date
+    timestamp: { type: Date, default: Date.now }
   }],
-  maxTime: { type: Number, default: 60 }
+  createdAt: { type: Date, default: Date.now },
+  maxTime: Number,
+  status: { type: String, default: 'active' }
 });
 
 const Poll = mongoose.model('Poll', PollSchema);
 
-const StudentSchema = new mongoose.Schema({
-  name: String,
-  socketId: String,
-  createdAt: { type: Date, default: Date.now }
-});
+// In-memory storage for active state
+const activeState = {
+  activePoll: null,
+  students: new Set(),
+};
 
-const Student = mongoose.model('Student', StudentSchema);
-
-// Socket.io Logic
 io.on('connection', (socket) => {
-  console.log('New client connected');
-
   // Student Registration
-  socket.on('register_student', async (studentName) => {
-    try {
-      // Check if student name is unique
-      const existingStudent = await Student.findOne({ name: studentName });
-      if (existingStudent) {
-        socket.emit('student_registration_error', 'Name already exists');
-        return;
-      }
-
-      const newStudent = new Student({
-        name: studentName,
-        socketId: socket.id
-      });
-      await newStudent.save();
-
-      socket.emit('student_registered', { 
-        id: newStudent._id, 
-        name: newStudent.name 
-      });
-    } catch (error) {
-      socket.emit('student_registration_error', error.message);
+  socket.on('register_student', async (name) => {
+    if (!name) {
+      socket.emit('student_registration_error', 'Name is required');
+      return;
     }
+
+    // Check if name is unique across all connected students
+    if (activeState.students.has(name)) {
+      socket.emit('student_registration_error', 'This name is already in use');
+      return;
+    }
+
+    activeState.students.add(name);
+    socket.studentName = name;
+    socket.emit('student_registered');
   });
 
-  // Teacher Creates Poll
+  // Create Poll (Teacher)
   socket.on('create_poll', async (pollData) => {
-    try {
-      // Check if there's an active poll
-      const activePoll = await Poll.findOne({ active: true });
-      if (activePoll) {
-        socket.emit('poll_creation_error', 'An active poll already exists');
-        return;
-      }
+    // Check if there's an active poll
+    if (activeState.activePoll) {
+      socket.emit('poll_creation_error', 'A poll is already active');
+      return;
+    }
 
+    try {
+      // Create new poll in database
       const newPoll = new Poll({
         question: pollData.question,
         options: pollData.options,
-        maxTime: pollData.maxTime || 60
+        maxTime: pollData.maxTime || 60,
       });
       await newPoll.save();
 
-      // Broadcast poll to all students
+      // Set as active poll
+      activeState.activePoll = newPoll;
+
+      // Broadcast new poll to all students
       io.emit('new_poll', {
-        id: newPoll._id,
+        _id: newPoll._id,
         question: newPoll.question,
         options: newPoll.options,
         maxTime: newPoll.maxTime
       });
     } catch (error) {
-      socket.emit('poll_creation_error', error.message);
+      socket.emit('poll_creation_error', 'Failed to create poll');
     }
   });
 
-  // Student Submits Answer
+  // Submit Answer
   socket.on('submit_answer', async (answerData) => {
-    try {
-      const activePoll = await Poll.findOne({ active: true });
-      if (!activePoll) {
-        socket.emit('answer_error', 'No active poll');
-        return;
-      }
+    if (!activeState.activePoll) return;
 
-      // Check if student has already answered
-      const existingResponse = activePoll.responses.find(
+    try {
+      // Find and update the poll
+      const poll = await Poll.findById(activeState.activePoll._id);
+      
+      // Check for existing response
+      const existingResponseIndex = poll.responses.findIndex(
         r => r.studentId === answerData.studentId
       );
-      if (existingResponse) {
-        socket.emit('answer_error', 'You have already answered this poll');
-        return;
-      }
 
-      activePoll.responses.push({
-        studentId: answerData.studentId,
-        answer: answerData.answer,
-        answeredAt: new Date()
-      });
-
-      // If all students have answered, close the poll
-      const totalStudents = await Student.countDocuments();
-      if (activePoll.responses.length >= totalStudents) {
-        activePoll.active = false;
-      }
-
-      await activePoll.save();
-
-      // Broadcast updated poll results
-      io.emit('poll_results', {
-        pollId: activePoll._id,
-        responses: activePoll.responses
-      });
-    } catch (error) {
-      socket.emit('answer_error', error.message);
-    }
-  });
-
-  // Get Current Active Poll
-  socket.on('get_active_poll', async () => {
-    try {
-      const activePoll = await Poll.findOne({ active: true });
-      if (activePoll) {
-        socket.emit('active_poll', {
-          id: activePoll._id,
-          question: activePoll.question,
-          options: activePoll.options,
-          maxTime: activePoll.maxTime
-        });
+      if (existingResponseIndex !== -1) {
+        // Update existing response
+        poll.responses[existingResponseIndex] = {
+          studentId: answerData.studentId,
+          answer: answerData.answer,
+          timestamp: new Date()
+        };
       } else {
-        socket.emit('no_active_poll');
+        // Add new response
+        poll.responses.push({
+          studentId: answerData.studentId,
+          answer: answerData.answer,
+          timestamp: new Date()
+        });
+      }
+
+      await poll.save();
+
+      // Calculate and send live results
+      const results = poll.options.map(option => ({
+        option,
+        count: poll.responses.filter(r => r.answer === option).length
+      }));
+
+      // Broadcast live results to all students
+      io.emit('poll_results', results);
+
+      // Check if all students have responded
+      if (poll.responses.length === activeState.students.size) {
+        // Mark poll as completed
+        poll.status = 'completed';
+        await poll.save();
+
+        // Reset active poll
+        io.emit('poll_closed');
+        activeState.activePoll = null;
       }
     } catch (error) {
-      socket.emit('poll_fetch_error', error.message);
+      console.error('Error submitting answer:', error);
     }
   });
 
-  // Fetch Past Polls
+  // Get Active Poll
+    socket.on('get_active_poll', async () => {
+        if (activeState.activePoll) {
+          const poll = await Poll.findById(activeState.activePoll._id);
+          socket.emit('active_poll', {
+            _id: poll._id,
+            question: poll.question,
+            options: poll.options,
+            maxTime: poll.maxTime,
+            responses: poll.responses
+          });
+        } else {
+          socket.emit('no_active_poll');
+        }
+  });
+
+  socket.on('get_poll_responses', async (pollId) => {
+    try {
+      const poll = await Poll.findById(pollId);
+      if (poll) {
+        socket.emit('poll_response_update', {
+          _id: poll._id,
+          responses: poll.responses
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching poll responses:', error);
+    }
+  });
+
+  // Get Past Polls
   socket.on('get_past_polls', async () => {
     try {
-      const pastPolls = await Poll.find({ active: false })
-        .sort({ createdAt: -1 })
-        .limit(10);
-      
+      const pastPolls = await Poll.find({ status: 'completed' }).sort({ createdAt: -1 });
       socket.emit('past_polls', pastPolls);
     } catch (error) {
-      socket.emit('past_polls_error', error.message);
+      console.error('Error fetching past polls:', error);
     }
   });
 
-  socket.on('disconnect', async () => {
-    // Remove student from database on disconnect
-    await Student.findOneAndDelete({ socketId: socket.id });
-    console.log('Client disconnected');
+  // Disconnect handling
+  socket.on('disconnect', () => {
+    if (socket.studentName) {
+      activeState.students.delete(socket.studentName);
+    }
   });
-});
-
-// Server Routes (optional, for REST API support)
-app.get('/api/polls', async (req, res) => {
-  try {
-    const polls = await Poll.find().sort({ createdAt: -1 });
-    res.json(polls);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
 });
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
-
-module.exports = { app, io, server };

@@ -151,9 +151,11 @@ io.on('connection', (socket) => {
   });
 
   // Get Active Poll
-    socket.on('get_active_poll', async () => {
-        if (activeState.activePoll) {
-          const poll = await Poll.findById(activeState.activePoll._id);
+  socket.on('get_active_poll', async () => {
+    try {
+      if (activeState.activePoll && activeState.activePoll._id) {
+        const poll = await Poll.findById(activeState.activePoll._id);
+        if (poll) {
           socket.emit('active_poll', {
             _id: poll._id,
             question: poll.question,
@@ -162,8 +164,16 @@ io.on('connection', (socket) => {
             responses: poll.responses
           });
         } else {
+          activeState.activePoll = null;
           socket.emit('no_active_poll');
         }
+      } else {
+        socket.emit('no_active_poll');
+      }
+    } catch (error) {
+      console.error('Error fetching active poll:', error);
+      socket.emit('no_active_poll');
+    }
   });
 
   socket.on('get_poll_responses', async (pollId) => {

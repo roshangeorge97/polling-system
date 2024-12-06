@@ -194,32 +194,32 @@ function TeacherDashboard({ socket }) {
         </button>
 
         {activePoll && (
-  <div className="current-poll-box mt-6 p-4 bg-blue-100 rounded-lg shadow-md">
-    <h3 className="font-semibold text-lg text-blue-600">Current Poll</h3>
-    <p className="text-gray-800 font-medium mb-2">{activePoll.question}</p>
-    <button
-      className="toggle-stats-btn text-blue-500 hover:underline"
-      onClick={() => toggleStatsVisibility(activePoll._id)}
-    >
-      {statsVisible === activePoll._id ? 'Hide Stats' : 'View Stats'}
-    </button>
-    {statsVisible === activePoll._id && (
-      <div className="mt-4 stats-box bg-white p-3 rounded-lg shadow-sm">
-        <p className="text-gray-700">Who Voted What:</p>
-        <ul className="list-disc pl-5">
-          {activePoll.responses.map((response, index) => (
-            <li key={index} className="text-sm text-gray-600">
-              {response.studentId}: {response.answer}
-            </li>
-          ))}
-        </ul>
-        <p className="text-gray-700 mt-3">
-          Total Students Attempted: {activePoll.responses.length}
-        </p>
-      </div>
-    )}
-  </div>
-)}
+        <div className="mt-6 p-4 bg-blue-100 rounded-lg shadow-md">
+          <h3 className="font-semibold text-lg text-blue-600">Current Poll</h3>
+          <p className="text-gray-800 font-medium mb-2">{activePoll.question}</p>
+          <button
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+            onClick={() => toggleStatsVisibility(activePoll._id)}
+          >
+            {statsVisible === activePoll._id ? 'Hide Stats' : 'View Stats'}
+          </button>
+          {statsVisible === activePoll._id && activePoll.responses && (
+            <div className="mt-4 bg-white p-3 rounded-lg shadow-sm">
+              <p className="text-gray-700">Responses:</p>
+              <ul className="list-disc pl-5">
+                {activePoll.responses.map((response, index) => (
+                  <li key={index} className="text-sm text-gray-600">
+                    {response.studentId}: {response.answer}
+                  </li>
+                ))}
+              </ul>
+              <p className="text-gray-700 mt-3">
+                Total Responses: {activePoll.responses.length}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
 
 <div className="past-polls-section mt-6">
@@ -397,32 +397,35 @@ function StudentDashboard({ socket }) {
       <h2 className="text-3xl font-bold mb-6 text-center text-blue-600">Student Dashboard</h2>
       <p className="mb-4 text-gray-600 text-center">Welcome, {studentName}</p>
 
-      {activePoll && (
-        <div className="mt-6 p-4 bg-blue-100 rounded-lg shadow-md">
-          <h3 className="font-semibold text-lg text-blue-600">Current Poll</h3>
-          <p className="text-gray-800 font-medium mb-2">{activePoll.question}</p>
-          <button
-            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-            onClick={() => toggleStatsVisibility(activePoll._id)}
-          >
-            {statsVisible === activePoll._id ? 'Hide Stats' : 'View Stats'}
-          </button>
-          {statsVisible === activePoll._id && activePoll.responses && (
-            <div className="mt-4 bg-white p-3 rounded-lg shadow-sm">
-              <p className="text-gray-700">Responses:</p>
-              <ul className="list-disc pl-5">
-                {activePoll.responses.map((response, index) => (
-                  <li key={index} className="text-sm text-gray-600">
-                    {response.studentId}: {response.answer}
-                  </li>
-                ))}
-              </ul>
-              <p className="text-gray-700 mt-3">
-                Total Responses: {activePoll.responses.length}
-              </p>
-            </div>
-          )}
+      {activePoll ? (
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold">{activePoll.question}</h3>
+          <div className="space-y-2">
+            {activePoll.options.map((option, index) => (
+              <button
+                key={index}
+                onClick={() => setSelectedAnswer(option)}
+                className={`w-full p-3 rounded-lg text-white ${
+                  selectedAnswer === option ? 'bg-blue-600' : 'bg-blue-500'
+                } hover:bg-blue-600 focus:outline-none transition-colors`}
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center justify-between">
+            <span className="text-gray-600">Time Remaining: {timeRemaining} seconds</span>
+            <button
+              onClick={submitAnswer}
+              className="p-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+            >
+              Submit Answer
+            </button>
+          </div>
         </div>
+      ) : (
+        <p className="text-center text-lg text-gray-600">No active poll at the moment.</p>
       )}
 
       {pollResults && (

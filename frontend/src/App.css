@@ -1,3 +1,5 @@
+
+
 /* Improved App.css with Better Color Contrast and Design */
 :root {
   /* Color Palette */
@@ -19,6 +21,7 @@
 }
 
 body {
+  background: linear-gradient(135deg, var(--light-background), #d1ecf1);
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
   background-color: var(--light-background);
   color: var(--text-dark);
@@ -30,12 +33,13 @@ body {
 }
 
 .container {
+  
   background-color: var(--white);
   border-radius: 12px;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
   padding: 2rem;
   width: 100%;
-  max-width: 500px;
+  max-width: 700px;
   margin: 1rem;
 }
 
@@ -186,3 +190,184 @@ input:focus {
   background-color: #f1f5f9;
   border: 1px solid #e5e7eb;
 }
+
+.app-container {
+  width:100vh;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--light-background), #d1ecf1);
+  padding: 1rem;
+}
+
+.login-container {
+  background: var(--white);
+  border-radius: 16px;
+  padding: 2rem;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  animation: slideUp 0.3s ease-out;
+}
+
+.gradient-title {
+  font-size: 2rem;
+  text-align: center;
+  margin-bottom: 1.5rem;
+  background: linear-gradient(to right, var(--accent-color), var(--primary-color));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.login-button {
+  width: 100%;
+  padding: 1rem;
+  margin: 0.5rem 0;
+  border: none;
+  border-radius: 12px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.login-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+}
+
+.teacher-button {
+  background: linear-gradient(to right, var(--accent-color), #2980b9);
+  color: var(--white);
+}
+
+.student-button {
+  background: linear-gradient(to right, var(--success-color), #2ecc71);
+  color: var(--white);
+}
+
+.past-polls-container {
+  margin-top: 2rem;
+}
+
+.past-poll-card {
+  background: var(--white);
+  border-radius: 12px;
+  margin-bottom: 1rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.past-poll-header {
+  padding: 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  background: var(--white);
+}
+
+.past-poll-header:hover {
+  background: rgba(52, 152, 219, 0.05);
+}
+
+.past-poll-content {
+  padding: 0 1rem 1rem;
+  background: rgba(52, 152, 219, 0.05);
+}
+
+.past-poll-response {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  border-radius: 8px;
+  background: var(--white);
+  margin: 0.5rem 0;
+}
+
+.response-name {
+  font-weight: 600;
+  color: var(--primary-color);
+}
+
+.response-answer {
+  color: var(--text-dark);
+}
+
+.chevron-icon {
+  transition: transform 0.3s ease;
+}
+
+.chevron-icon.expanded {
+  transform: rotate(180deg);
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.teacher-dashboard-container {
+  padding: 20px;
+}
+
+.card {
+  background-color: #fff;
+  border-radius: 10px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+}
+
+.input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  margin-top: 10px;
+}
+
+.btn-primary {
+  background-color: #007bff;
+  color: white;
+  padding: 10px 15px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.btn-primary:hover {
+  background-color: #0056b3;
+}
+
+.btn-secondary {
+  background-color: #6c757d;
+  color: white;
+  padding: 10px 15px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.btn-secondary:hover {
+  background-color: #5a6268;
+}
+
+.poll-item {
+  margin-top: 15px;
+  border-top: 1px solid #eee;
+  padding-top: 10px;
+}
+
+.testcont{
+  display:flex;
+}
+

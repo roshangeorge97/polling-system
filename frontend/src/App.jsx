@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import io from 'socket.io-client';
 import './App.css';
+import { MessageCircle, X } from 'lucide-react';
 
 // Socket Connection
 const socket = io('https://polling-system-1tfn.onrender.com');
@@ -10,24 +11,22 @@ function App() {
   const [userType, setUserType] = useState(null);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
+    <div className="app-container">
       {!userType ? (
-        <div className="bg-white shadow-lg rounded-lg p-6 w-full sm:w-[350px] max-w-md">
-          <h2 className="text-2xl font-bold mb-4 text-center text-blue-600">Live Polling System</h2>
-          <div className="grid gap-4">
-            <button
-              onClick={() => setUserType('teacher')}
-              className="bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 transition-colors focus:outline-none"
-            >
-              Teacher Login
-            </button>
-            <button
-              onClick={() => setUserType('student')}
-              className="bg-green-500 text-white py-2 rounded-lg hover:bg-green-600 transition-colors focus:outline-none"
-            >
-              Student Login
-            </button>
-          </div>
+        <div className="login-container">
+          <h2 className="gradient-title">Live Polling System</h2>
+          <button
+            onClick={() => setUserType('teacher')}
+            className="login-button teacher-button"
+          >
+            Teacher Login
+          </button>
+          <button
+            onClick={() => setUserType('student')}
+            className="login-button student-button"
+          >
+            Student Login
+          </button>
         </div>
       ) : userType === 'teacher' ? (
         <TeacherDashboard socket={socket} />
@@ -47,10 +46,16 @@ function TeacherDashboard({ socket }) {
   const [pastPolls, setPastPolls] = useState([]);
   const [pollError, setPollError] = useState(null);
   const [statsVisible, setStatsVisible] = useState(null);
+  const [students, setStudents] = useState([]);
+  const [chatOpen, setChatOpen] = useState(false);
 
   useEffect(() => {
     socket.emit('get_past_polls');
     socket.emit('get_active_poll');
+
+    socket.on('student_list_update', (studentList) => {
+      setStudents(studentList);
+    });
 
     socket.on('new_poll', (poll) => {
       setActivePoll(poll);
@@ -93,8 +98,13 @@ function TeacherDashboard({ socket }) {
       socket.off('no_active_poll');
       socket.off('poll_creation_error');
       socket.off('poll_closed');
+      socket.off('student_list_update');
     };
   }, [socket]);
+
+  const kickStudent = (studentName) => {
+    socket.emit('kick_student', studentName);
+  };
 
   const toggleStatsVisibility = (pollId) => {
     if (statsVisible === pollId) {
@@ -135,8 +145,25 @@ function TeacherDashboard({ socket }) {
   };
 
   return (
-    <div className="bg-white shadow-lg rounded-lg p-6 w-full max-w-3xl">
-      <h2 className="text-3xl font-bold mb-6 text-center text-blue-600">Teacher Dashboard</h2>
+    <div className="container">
+      <h2 className="gradient-title">Teacher Dashboard</h2>
+      <div className="student-list bg-white p-4 rounded-lg shadow mb-6">
+        <h3 className="text-lg font-semibold mb-3">Connected Students</h3>
+        <div className="space-y-2">
+          {students.map((student, index) => (
+            <div key={index} className="flex justify-between items-center p-2 bg-gray-50 rounded">
+              <span>{student}</span>
+              <button
+                onClick={() => kickStudent(student)}
+                className="text-red-500 hover:text-red-700"
+              >
+                Remove
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+
       
       {pollError && (
         <div className="bg-red-100 text-red-800 p-3 rounded-lg mb-4 text-center">
@@ -222,50 +249,45 @@ function TeacherDashboard({ socket }) {
       )}
 
 
-<div className="past-polls-section mt-6">
-  <h3 className="text-lg font-semibold mb-4 text-blue-600">Past Polls</h3>
-  {pastPolls.length === 0 ? (
-    <p className="text-center text-gray-500">No past polls yet.</p>
-  ) : (
-    pastPolls.map((poll) => (
-      <div
-        key={poll._id}
-        className="poll-box bg-white shadow-md rounded-lg p-4 mb-4 hover:shadow-lg transition"
-      >
-        <p className="font-semibold text-gray-800">{poll.question}</p>
-        <button
-          className="toggle-stats-btn text-blue-500 hover:underline"
-          onClick={() => toggleStatsVisibility(poll._id)}
-        >
-          {statsVisible === poll._id ? 'Hide Stats' : 'View Stats'}
-        </button>
-        {statsVisible === poll._id && (
-          <div className="mt-4 stats-box bg-gray-50 p-3 rounded-lg shadow-inner">
-            <p className="text-gray-700">Who Voted What:</p>
-            <ul className="list-disc pl-5">
-              {poll.responses.map((response, index) => (
-                <li key={index} className="text-sm text-gray-600">
-                  {response.studentId}: {response.answer}
-                </li>
-              ))}
-            </ul>
-            <p className="text-gray-700 mt-3">
-              Total Students Attempted: {poll.responses.length}
-            </p>
+<div className="past-polls-container">
+        <h3>Past Polls</h3>
+        {pastPolls.map((poll) => (
+          <div key={poll._id} className="past-poll-card">
+            <div 
+              className="past-poll-header"
+              onClick={() => toggleStatsVisibility(poll._id)}
+            >
+              <h4>{poll.question}</h4>
+              <span className={`chevron-icon ${statsVisible === poll._id ? 'expanded' : ''}`}>
+                ▼
+              </span>
+            </div>
+            
+            {statsVisible === poll._id && (
+              <div className="past-poll-content">
+                {poll.responses.map((response, index) => (
+                  <div key={index} className="past-poll-response">
+                    <span className="response-name">{response.studentId}:</span>
+                    <span className="response-answer">{response.answer}</span>
+                  </div>
+                ))}
+                <div className="response-total">
+                  Total Responses: {poll.responses.length}
+                </div>
+              </div>
+            )}
           </div>
-        )}
+        ))}
       </div>
-    ))
-  )}
-</div>
-
-      </div>
+    </div>
+    <ChatPopup socket={socket} isTeacher={true} userName="Teacher" isOpen={chatOpen} setIsOpen={setChatOpen} />
     </div>
   );
 }
 
 // Student Dashboard Component
 function StudentDashboard({ socket }) {
+  const [chatOpen, setChatOpen] = useState(false);
   const [studentName, setStudentName] = useState('');
   const [isRegistered, setIsRegistered] = useState(false);
   const [activePoll, setActivePoll] = useState(null);
@@ -282,6 +304,11 @@ function StudentDashboard({ socket }) {
       registerStudent(storedName);
     }
 
+    socket.on('kicked', () => {
+      sessionStorage.removeItem('studentName');
+      window.location.reload();
+    });
+
     // Student registration events
     socket.on('student_registered', () => {
       setIsRegistered(true);
@@ -297,6 +324,7 @@ function StudentDashboard({ socket }) {
 
     // Active poll events
     socket.on('new_poll', (poll) => {
+      
       setActivePoll(poll);
       setTimeRemaining(poll.maxTime);
       setPollResults(null);
@@ -329,6 +357,7 @@ function StudentDashboard({ socket }) {
     });
 
     return () => {
+      socket.off('kicked');
       socket.off('student_registered');
       socket.off('student_registration_error');
       socket.off('new_poll');
@@ -438,7 +467,103 @@ function StudentDashboard({ socket }) {
           ))}
         </div>
       )}
+            <ChatPopup
+        socket={socket}
+        isTeacher={false}
+        userName={studentName}
+        isOpen={chatOpen}
+        setIsOpen={setChatOpen}
+      />
     </div>
+  );
+}
+
+function ChatPopup({ socket, isTeacher, userName, isOpen, setIsOpen }) {
+  const [messages, setMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState('');
+  const messagesEndRef = useRef(null);
+
+  useEffect(() => {
+    socket.emit('get_messages');
+    
+    socket.on('message_history', (history) => {
+      setMessages(history);
+    });
+
+    socket.on('new_message', (message) => {
+      setMessages(prev => [...prev, message]);
+    });
+
+    return () => {
+      socket.off('message_history');
+      socket.off('new_message');
+    };
+  }, [socket]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  const sendMessage = (e) => {
+    e.preventDefault();
+    if (newMessage.trim()) {
+      socket.emit('send_message', {
+        sender: userName,
+        content: newMessage
+      });
+      setNewMessage('');
+    }
+  };
+
+  return (
+    <>
+      <button
+        onClick={() => setIsOpen(true)}
+        className="fixed bottom-4 right-4 p-3 bg-blue-500 text-white rounded-full shadow-lg"
+      >
+        <MessageCircle size={24} />
+      </button>
+
+      {isOpen && (
+        <div className="fixed bottom-20 right-4 w-80 bg-white rounded-lg shadow-xl">
+          <div className="flex justify-between items-center p-3 border-b">
+            <h3 className="font-semibold">Chat</h3>
+            <button onClick={() => setIsOpen(false)}>
+              <X size={20} />
+            </button>
+          </div>
+
+          <div className="h-96 overflow-y-auto p-3">
+            {messages.map((msg, index) => (
+              <div
+                key={index}
+                className={`mb-2 ${msg.sender === userName ? 'text-right' : ''}`}
+              >
+                <span className="text-xs text-gray-500">{msg.sender}</span>
+                <div className={`p-2 rounded-lg inline-block max-w-[80%] ${
+                  msg.sender === userName
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-100'
+                }`}>
+                  {msg.content}
+                </div>
+              </div>
+            ))}
+            <div ref={messagesEndRef} />
+          </div>
+
+          <form onSubmit={sendMessage} className="p-3 border-t">
+            <input
+              type="text"
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              placeholder="Type a message..."
+              className="w-full p-2 border rounded-lg"
+            />
+          </form>
+        </div>
+      )}
+    </>
   );
 }
 

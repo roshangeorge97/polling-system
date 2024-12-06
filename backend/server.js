@@ -21,47 +21,78 @@ mongoose.connect(uri, {
   useUnifiedTopology: true,
 });
 
-
-// Poll Schema
-const PollSchema = new mongoose.Schema({
-  question: String,
-  options: [String],
-  responses: [{
-    studentId: String,
-    answer: String,
+const MessageSchema = new mongoose.Schema({
+    sender: String,
+    content: String,
     timestamp: { type: Date, default: Date.now }
-  }],
-  createdAt: { type: Date, default: Date.now },
-  maxTime: Number,
-  status: { type: String, default: 'active' }
-});
-
-const Poll = mongoose.model('Poll', PollSchema);
-
-// In-memory storage for active state
-const activeState = {
-  activePoll: null,
-  students: new Set(),
-};
-
-io.on('connection', (socket) => {
-  // Student Registration
-  socket.on('register_student', async (name) => {
-    if (!name) {
-      socket.emit('student_registration_error', 'Name is required');
-      return;
-    }
-
-    // Check if name is unique across all connected students
-    if (activeState.students.has(name)) {
-      socket.emit('student_registration_error', 'This name is already in use');
-      return;
-    }
-
-    activeState.students.add(name);
-    socket.studentName = name;
-    socket.emit('student_registered');
   });
+  
+  const PollSchema = new mongoose.Schema({
+    question: String,
+    options: [String],
+    responses: [{
+      studentId: String,
+      answer: String,
+      timestamp: { type: Date, default: Date.now }
+    }],
+    createdAt: { type: Date, default: Date.now },
+    maxTime: Number,
+    status: { type: String, default: 'active' }
+  });
+  
+  const Poll = mongoose.model('Poll', PollSchema);
+  const Message = mongoose.model('Message', MessageSchema);
+  
+  const activeState = {
+    activePoll: null,
+    students: new Map(), // Changed to Map to store socket IDs
+    messages: []
+  };
+  
+
+  io.on('connection', (socket) => {
+    socket.on('register_student', async (name) => {
+      if (!name) {
+        socket.emit('student_registration_error', 'Name is required');
+        return;
+      }
+  
+      if (Array.from(activeState.students.values()).includes(name)) {
+        socket.emit('student_registration_error', 'This name is already in use');
+        return;
+      }
+  
+      activeState.students.set(socket.id, name);
+      socket.studentName = name;
+      socket.emit('student_registered');
+      io.emit('student_list_update', Array.from(activeState.students.values()));
+    });
+  
+    socket.on('kick_student', (studentName) => {
+      const studentSocketId = Array.from(activeState.students.entries())
+        .find(([_, name]) => name === studentName)?.[0];
+      
+      if (studentSocketId) {
+        io.to(studentSocketId).emit('kicked');
+        activeState.students.delete(studentSocketId);
+        io.emit('student_list_update', Array.from(activeState.students.values()));
+      }
+    });
+  
+    socket.on('send_message', async (message) => {
+      const newMessage = new Message({
+        sender: message.sender,
+        content: message.content
+      });
+      await newMessage.save();
+      activeState.messages.push(newMessage);
+      io.emit('new_message', newMessage);
+    });
+  
+    socket.on('get_messages', async () => {
+      const messages = await Message.find().sort({ timestamp: -1 }).limit(50);
+      socket.emit('message_history', messages.reverse());
+    });
 
   // Create Poll (Teacher)
   socket.on('create_poll', async (pollData) => {
@@ -202,8 +233,9 @@ io.on('connection', (socket) => {
 
   // Disconnect handling
   socket.on('disconnect', () => {
-    if (socket.studentName) {
-      activeState.students.delete(socket.studentName);
+    if (activeState.students.has(socket.id)) {
+      activeState.students.delete(socket.id);
+      io.emit('student_list_update', Array.from(activeState.students.values()));
     }
   });
 });

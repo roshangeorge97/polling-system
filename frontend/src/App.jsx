@@ -3,7 +3,7 @@ import io from 'socket.io-client';
 import './App.css';
 
 // Socket Connection
-const socket = io('http://localhost:5000');
+const socket = io('https://polling-system-1tfn.onrender.com');
 
 // Main App Component
 function App() {
